@@ -4,6 +4,7 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.5'
     id "edu.wpi.first.GradleRIO" version "2025.1.1"
     id 'edu.wpi.first.WpilibTools' version '2.1.0'
+    id "com.diffplug.spotless" version "7.0.2"
 }
 
 application {
@@ -50,4 +51,44 @@ wrapper {
 java {
     sourceCompatibility = "17"
     targetCompatibility = "17"
+}
+project.compileJava.dependsOn(spotlessApply)
+spotless {
+    java {
+        target fileTree(".") {
+            include "**/*.java"
+            exclude "**/build/**", "**/build-*/**"
+        }
+        toggleOffOn()
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    groovyGradle {
+        target fileTree(".") {
+            include "**/*.gradle"
+            exclude "**/build/**", "**/build-*/**"
+        }
+        greclipse()
+        indentWithSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    json {
+        target fileTree(".") {
+            include "**/*.json"
+            exclude "**/build/**", "**/build-*/**"
+        }
+        gson().indentWithSpaces(2)
+    }
+    format "misc", {
+        target fileTree(".") {
+            include "**/*.md", "**/.gitignore"
+            exclude "**/build/**", "**/build-*/**"
+        }
+        trimTrailingWhitespace()
+        indentWithSpaces(2)
+        endWithNewline()
+    }
 }

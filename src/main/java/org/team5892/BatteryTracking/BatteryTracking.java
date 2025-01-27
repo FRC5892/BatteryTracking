@@ -1,6 +1,5 @@
 package org.team5892.BatteryTracking;
 
-import javax.smartcardio.*;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -14,6 +13,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.DoubleSupplier;
+import javax.smartcardio.*;
 
 // TODO:
 // - Docs
@@ -54,6 +54,7 @@ import java.util.function.DoubleSupplier;
 public class BatteryTracking {
   /** Error handler to use. */
   protected static ProgramSpecificErrorHandling ERROR_HANDLER = new JavaErrors();
+
   /** How often to write to the tag */
   private static final long WRITE_EVERY_SECS = 60 * 5;
 
@@ -173,6 +174,7 @@ public class BatteryTracking {
     NFCUtils.trimBuffer(buffer);
     NFCUtils.writeTag(buffer);
   }
+
   /**
    * Record for a new thread to write to the battery
    *
@@ -229,6 +231,7 @@ public class BatteryTracking {
       this.log = log;
       this.sessionUsageAH = 0;
     }
+
     /**
      * @return Battery's numeric ID
      */
@@ -284,6 +287,7 @@ public class BatteryTracking {
     public List<LogEntry> getLog() {
       return log;
     }
+
     /**
      * Parse a tag Expects the format
      *
@@ -406,6 +410,7 @@ public class BatteryTracking {
 
         usageAH = newUsageAH;
       }
+
       /**
        * Deserializes a log entry from a line
        *
@@ -448,33 +453,44 @@ public class BatteryTracking {
      * decryption
      */
     private static final Boolean IS_MIFARE = false;
+
     /**
      * If the tag is broken up by sector. MIFARE classic 1k is. The NTAGs I have are not. If not by
      * sector, it's by page
      */
     private static final boolean BY_SECTOR = false;
+
     /** By Page ONLY: Bytes per page */
     private static final int PAGE_SIZE_BYTES = 4;
+
     /** By Page ONLY: First usable page */
     private static final int START_PAGE = 4;
+
     /** By Page ONLY: Last usable page */
     private static final int END_PAGE = 129;
+
     /** By Page ONLY: Page count */
     private static final int PAGE_COUNT = END_PAGE - START_PAGE + 1;
+
     /** By Sector ONLY: Sectors on a card, 16 for MIFARE classic 1k */
     private static final int SECTORS = 16;
+
     /** By Sector ONLY: Blocks per sector. For MIFARE classic 1k, this is 4. */
     private static final int BLOCKS_PER_SECTOR = 4;
+
     /**
      * By Sector ONLY: Blocks to read in each sector. Mifare uses the last block for encryption
      * stuff so only use the first 3
      */
     @SuppressWarnings("ConstantConditions")
     private static final int BLOCKS_TO_USE_PER_SECTOR = IS_MIFARE ? 3 : 4;
+
     /** By Sector ONLY: Bytes per block Mifare classic 1k has 16 */
     private static final int BYTES_PER_BLOCK = 16;
+
     /** Bytes per unit. Either a block or a page */
     private static final int BYTES_PER_UNIT = BY_SECTOR ? BYTES_PER_BLOCK : PAGE_SIZE_BYTES;
+
     /**
      * Milliseconds to wait for a card before erroring. It should already be close enough, so it
      * doesn't have to be large
@@ -716,6 +732,7 @@ public class BatteryTracking {
     private static boolean responseSuccessful(ResponseAPDU response) {
       return responseSuccessful(response.getSW1(), response.getSW2());
     }
+
     /**
      * Checks if an APDU response is successful
      *
@@ -805,8 +822,10 @@ public class BatteryTracking {
   private static class NDEFUtils {
     /** ISO 639 code for encoded data. {@code en} would be appropriate */
     private static final String LANGUAGE_CODE = "en";
+
     /** Byte array for {@link #LANGUAGE_CODE}. This is what is actually used in code. */
     private static final byte[] LANGUAGE_CODE_BYTES = LANGUAGE_CODE.getBytes();
+
     /** Character set. I don't think this should be changed from UTF-8 */
     private static final Charset CHARSET = StandardCharsets.UTF_8;
 
@@ -951,12 +970,14 @@ public class BatteryTracking {
      * @param e raw exception with stack trace
      */
     void consumeError(String message, Exception e);
+
     /**
      * Consume an error
      *
      * @param message message
      */
     void consumeError(String message);
+
     /**
      * Consume a warning
      *
@@ -964,6 +985,7 @@ public class BatteryTracking {
      * @param e raw exception with stack trace
      */
     void consumeWarning(String message, Exception e);
+
     /**
      * Consume a warning
      *
