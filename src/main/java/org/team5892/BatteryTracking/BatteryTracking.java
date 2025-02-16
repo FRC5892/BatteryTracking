@@ -1,5 +1,8 @@
 package org.team5892.BatteryTracking;
 
+import edu.wpi.first.util.struct.Struct;
+import edu.wpi.first.util.struct.StructSerializable;
+
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -7,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -366,7 +370,7 @@ public class BatteryTracking {
     }
 
     /** A Log entry, most likely every time the device was turned on. */
-    public static class LogEntry implements Comparable<LogEntry> {
+    public static class LogEntry implements Comparable<LogEntry>, StructSerializable {
       private LocalDateTime dateTime;
       private double usageAH;
       // Wow this will fail at Y2.1K
@@ -443,6 +447,78 @@ public class BatteryTracking {
       public int compareTo(LogEntry o) {
         return -this.dateTime.compareTo(o.dateTime);
       }
+
+      public static final Struct<LogEntry> struct = new LogEntryStruct();
+    }
+  }
+  public static class LogEntryStruct implements Struct<Battery.LogEntry> {
+
+    /**
+     * Gets the Class object for the stored value.
+     *
+     * @return Class
+     */
+    @Override
+    public Class<Battery.LogEntry> getTypeClass() {
+      return Battery.LogEntry.class;
+    }
+
+    /**
+     * Gets the type name (e.g. for schemas of other structs). This should be globally unique among
+     * structs.
+     *
+     * @return type name
+     */
+    @Override
+    public String getTypeName() {
+      return "BatteryTrackingLogEntry";
+    }
+
+    /**
+     * Gets the serialized size (in bytes). This should always be a constant.
+     *
+     * @return serialized size
+     */
+    @Override
+    public int getSize() {
+      return kSizeDouble * 2;
+    }
+
+    /**
+     * Gets the schema.
+     *
+     * @return schema
+     */
+    @Override
+    public String getSchema() {
+      return "long epochSeconds;double usageAH";
+    }
+
+    /**
+     * Deserializes an object from a raw struct serialized ByteBuffer starting at the current
+     * position. Will increment the ByteBuffer position by getStructSize() bytes. Will not otherwise
+     * modify the ByteBuffer (e.g. byte order will not be changed).
+     *
+     * @param bb ByteBuffer
+     * @return New object
+     */
+    @Override
+    public Battery.LogEntry unpack(ByteBuffer bb) {
+      return new Battery.LogEntry(LocalDateTime.ofEpochSecond(bb.getLong(), 0, ZoneOffset.UTC), bb.getDouble());
+    }
+
+    /**
+     * Puts object contents to a ByteBuffer starting at the current position. Will increment the
+     * ByteBuffer position by getStructSize() bytes. Will not otherwise modify the ByteBuffer (e.g.
+     * byte order will not be changed).
+     *
+     * @param bb    ByteBuffer
+     * @param value object to serialize
+     */
+    @Override
+    public void pack(ByteBuffer bb, Battery.LogEntry value) {
+        bb.putLong(value.getDateTime().toEpochSecond(ZoneOffset.UTC));
+        bb.putDouble(value.getUsageAH());
     }
   }
 
