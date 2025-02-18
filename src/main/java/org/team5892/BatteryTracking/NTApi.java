@@ -1,18 +1,21 @@
 package org.team5892.BatteryTracking;
 
 import edu.wpi.first.networktables.*;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.function.DoubleSupplier;
 
 public class NTApi {
-  private final IntegerSubscriber epochLocalTimeSecSub;
+  private final IntegerSubscriber epochLocalTimeMinSub;
   private final DoubleSupplier usageSupplierAH;
   private final BooleanSubscriber triggerWriteSub;
   private final BooleanPublisher triggerWritePub;
+  private final BooleanPublisher failedPub;
+  private final NetworkTable table;
   private final StringPublisher batteryNamePub;
   private final IntegerPublisher batteryIdPub;
   private final IntegerPublisher batteryYearPub;
   private final StructArrayPublisher<BatteryTracking.Battery.LogEntry> logPub;
-  private final BooleanPublisher failedPub;
   private boolean hasRead = false;
 
   public NTApi(String teamOrIP) {
@@ -24,44 +27,52 @@ public class NTApi {
       instance.setServer(teamOrIP);
     }
     instance.startClient4("Battery Tracking");
-    NetworkTable table = instance.getTable("BatteryTracking");
-    this.epochLocalTimeSecSub = table.getIntegerTopic("epochLocalTimeSec").subscribe(-1);
+    this.table = instance.getTable("BatteryTracking");
+    this.epochLocalTimeMinSub = table.getIntegerTopic("epochLocalTimeMin").subscribe(-1);
     this.usageSupplierAH = table.getDoubleTopic("usageAH").subscribe(0.0);
     this.triggerWriteSub = table.getBooleanTopic("triggerWrite").subscribe(false);
     this.triggerWritePub = table.getBooleanTopic("triggerWrite").publish();
+    this.failedPub = table.getBooleanTopic("failed").publish();
     this.batteryNamePub = table.getStringTopic("batteryName").publish();
     this.batteryIdPub = table.getIntegerTopic("batteryId").publish();
     this.batteryYearPub = table.getIntegerTopic("batteryYear").publish();
     this.logPub =
         table.getStructArrayTopic("log", BatteryTracking.Battery.LogEntry.struct).publish();
-    this.failedPub = table.getBooleanTopic("failed").publish();
+    failedPub.set(false);
   }
 
   public void loop() {
     //noinspection InfiniteLoopStatement
     while (true) {
       // wait for DS and robot code to connect
-      if (this.epochLocalTimeSecSub.get() == -1) {
+      if (this.epochLocalTimeMinSub.get() == -1
+          || !NetworkTableInstance.getDefault().isConnected()) {
+        this.hasRead = false;
         continue;
       }
+      // Once connected, read the battery data
       if (!this.hasRead) {
         this.hasRead = true;
-        BatteryTracking.initialRead();
+        // Check if coprocessor is still up but robot code restarted
+        if (BatteryTracking.getInsertedBattery() == null) {
+          BatteryTracking.initialRead();
+        }
         BatteryTracking.Battery insertedBattery = BatteryTracking.getInsertedBattery();
         if (insertedBattery != null) {
-          this.batteryNamePub.set(insertedBattery.getName());
-          this.batteryIdPub.set(insertedBattery.getId());
-          this.batteryYearPub.set(insertedBattery.getYear());
-          this.logPub.set(
-              insertedBattery.getLog().toArray(new BatteryTracking.Battery.LogEntry[0]));
+          batteryNamePub.set(insertedBattery.getName());
+          batteryIdPub.set(insertedBattery.getId());
+          batteryYearPub.set(insertedBattery.getYear());
+          logPub.set(insertedBattery.getLog().toArray(new BatteryTracking.Battery.LogEntry[0]));
+          triggerWritePub.set(false);
         } else {
           this.failedPub.set(true);
         }
       }
       if (this.triggerWriteSub.get()) {
-        BatteryTracking.updateSync(
-            this.usageSupplierAH.getAsDouble()); // TODO: take in current time.*******
         this.triggerWritePub.set(false);
+        BatteryTracking.updateSync(
+            this.usageSupplierAH.getAsDouble(),
+            LocalDateTime.ofEpochSecond(this.epochLocalTimeMinSub.get() * 60, 0, ZoneOffset.UTC));
       }
     }
   }
