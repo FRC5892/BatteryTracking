@@ -2,12 +2,14 @@ package org.team5892.BatteryTracking;
 
 import edu.wpi.first.networktables.NetworkTablesJNI;
 import edu.wpi.first.util.CombinedRuntimeLoader;
+import edu.wpi.first.util.WPIUtilJNI;
 import java.io.IOException;
 
 public class Main {
 
   public static void main(String[] args) throws IOException {
     NetworkTablesJNI.Helper.setExtractOnStaticLoad(false);
+    WPIUtilJNI.Helper.setExtractOnStaticLoad(false);
     CombinedRuntimeLoader.loadLibraries(Main.class, "wpiutiljni", "ntcorejni");
 
     if (args.length == 0) {
