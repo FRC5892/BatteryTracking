@@ -3,7 +3,7 @@ Description=Service that runs Battery Tracking
 
 [Service]
 WorkingDirectory=/opt/batteryTracking
-ExecStart=/usr/bin/java /opt/batteryTracking/BatteryTracking.jar
+ExecStart=/usr/bin/java -jar /opt/batteryTracking/BatteryTracking.jar
 ExecStop=/bin/systemctl kill BatteryTracking
 Type=simple
 Restart=on-failure
