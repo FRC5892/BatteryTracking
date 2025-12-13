@@ -12,7 +12,7 @@ public class Main {
     WPIUtilJNI.Helper.setExtractOnStaticLoad(false);
     CombinedRuntimeLoader.loadLibraries(Main.class, "wpiutiljni", "ntcorejni");
 
-    if (args.length == 0) {
+    if (args.length != 1) {
       System.out.println("Usage: java -jar BatteryTracking.jar <team/NT ip>");
       return;
     }
