@@ -98,8 +98,9 @@ public class BatteryTracking {
   }
 
   /**
-   * Calls for a write on a separate thread.The thread must already be started. This could be useful
+   * Calls for a write on a separate thread. The thread must already be started. This could be useful
    * if the robot is about to be turned off.
+   * @exception NullPointerException if {@link  #updateAutonomously(DoubleSupplier)} has not been called and the background thread has not been started
    */
   public static void manualAsyncUpdate() {
     if (asyncThread == null) {
