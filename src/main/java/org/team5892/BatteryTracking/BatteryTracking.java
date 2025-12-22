@@ -637,7 +637,7 @@ public class BatteryTracking {
       }
       System.out.printf("Took %d ns \n", System.nanoTime() - startTime);
       bytes.position(0);
-      if (!(bytes.get() == (byte) 0x03))
+      if (bytes.get() != (byte) 0x03)
         return bytes; // If it doesn't have these proprietary bytes were done
       byte length = bytes.get();
       if (length == (byte) 0xFF) {
@@ -938,7 +938,6 @@ public class BatteryTracking {
       ByteBuffer payload = data.slice(); // get only the payload data, after the header
       payload.limit((int) length); // discard the rest of the card
       // actually decode
-      ;
       CharBuffer chars = CHARSET.decode(payload);
       return chars.toString();
     }
@@ -1112,7 +1111,6 @@ public class BatteryTracking {
     public void consumeError(String message) {
       System.out.printf("Battery Tracking Error: %s \n", message);
       (new RuntimeException(message)).printStackTrace();
-      ;
     }
 
     /**
