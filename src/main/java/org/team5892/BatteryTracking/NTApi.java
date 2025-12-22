@@ -44,35 +44,39 @@ public class NTApi {
   public void loop() {
     //noinspection InfiniteLoopStatement
     while (true) {
-      // wait for DS and robot code to connect
-      if (this.epochLocalTimeMinSub.get() == -1
-          || !NetworkTableInstance.getDefault().isConnected()) {
-        this.hasRead = false;
-        continue;
-      }
-      // Once connected, read the battery data
-      if (!this.hasRead) {
-        this.hasRead = true;
-        // Check if coprocessor is still up but robot code restarted
-        if (BatteryTracking.getInsertedBattery() == null) {
-          BatteryTracking.initialRead();
+      try {
+        // wait for DS and robot code to connect
+        if (this.epochLocalTimeMinSub.get() == -1
+            || !NetworkTableInstance.getDefault().isConnected()) {
+          this.hasRead = false;
+          continue;
         }
-        BatteryTracking.Battery insertedBattery = BatteryTracking.getInsertedBattery();
-        if (insertedBattery != null) {
-          batteryNamePub.set(insertedBattery.getName());
-          batteryIdPub.set(insertedBattery.getId());
-          batteryYearPub.set(insertedBattery.getYear());
-          logPub.set(insertedBattery.getLog().toArray(new BatteryTracking.Battery.LogEntry[0]));
-          triggerWritePub.set(false);
-        } else {
-          this.failedPub.set(true);
+        // Once connected, read the battery data
+        if (!this.hasRead) {
+          this.hasRead = true;
+          // Check if coprocessor is still up but robot code restarted
+          if (BatteryTracking.getInsertedBattery() == null) {
+            BatteryTracking.initialRead();
+          }
+          BatteryTracking.Battery insertedBattery = BatteryTracking.getInsertedBattery();
+          if (insertedBattery != null) {
+            batteryNamePub.set(insertedBattery.getName());
+            batteryIdPub.set(insertedBattery.getId());
+            batteryYearPub.set(insertedBattery.getYear());
+            logPub.set(insertedBattery.getLog().toArray(new BatteryTracking.Battery.LogEntry[0]));
+            triggerWritePub.set(false);
+          } else {
+            this.failedPub.set(true);
+          }
         }
-      }
-      if (this.triggerWriteSub.get()) {
-        this.triggerWritePub.set(false);
-        BatteryTracking.updateSync(
-            this.usageSupplierAH.getAsDouble(),
-            LocalDateTime.ofEpochSecond(this.epochLocalTimeMinSub.get() * 60, 0, ZoneOffset.UTC));
+        if (this.triggerWriteSub.get()) {
+          this.triggerWritePub.set(false);
+          BatteryTracking.updateSync(
+              this.usageSupplierAH.getAsDouble(),
+              LocalDateTime.ofEpochSecond(this.epochLocalTimeMinSub.get() * 60, 0, ZoneOffset.UTC));
+        }
+      } catch (Exception e) {
+        failedPub.set(true);
       }
     }
   }
