@@ -1,7 +1,7 @@
 #  Workflow by Photon Vision: https://github.com/PhotonVision/photonvision/blob/main/.github/workflows/build.yml
 #  Licensed under the GNU General Public License: https://www.gnu.org/licenses/
 
-#  Copyright (C) Photon Vision.
+#  Copyright (C) Photon Vision. 
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -20,11 +20,11 @@ name: Build
 
 on:
   # Run on pushes to main and pushed tags, and on pull requests against main, but ignore the docs folder
-  push:
+  push: 
   pull_request:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+concurrency: 
+  group: ${{ github. workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -38,15 +38,24 @@ jobs:
       # Checkout code.
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
+        with: 
           fetch-depth: 0
       - name: Fetch tags
         run: git fetch --tags --force
       - name: Install Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version:  17
           distribution: temurin
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with: 
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
       - name: Gradle Build
         run: ./gradlew compileJava
 
@@ -54,7 +63,7 @@ jobs:
     needs: [build-gradle]
 
     strategy:
-      fail-fast: false
+      fail-fast:  false
       matrix:
         include:
           - os: windows-latest
@@ -67,12 +76,12 @@ jobs:
             arch-override: macx64
           - os: macos-latest
             artifact-name: macOSArm
-            architecture: x64
-            arch-override: macarm64
-          - os: ubuntu-22.04
+            architecture:  x64
+            arch-override:  macarm64
+          - os:  ubuntu-22.04
             artifact-name: Linux
-            architecture: x64
-            arch-override: linuxx64
+            architecture:  x64
+            arch-override:  linuxx64
           - os: ubuntu-22.04
             artifact-name: LinuxArm64
             architecture: x64
@@ -81,17 +90,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: "Build JAR - ${{ matrix.artifact-name }}"
     steps:
-      - uses: actions/checkout@v4
+      - uses:  actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth:  0
       - name: Install Java 17
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
           architecture: ${{ matrix.architecture }}
-      - run: ./gradlew build -PArchOverride=${{ matrix.arch-override }}
-      - uses: actions/upload-artifact@v4
+      - name: Cache Gradle
+        uses:  actions/cache@v3
         with:
-          name: jar-${{ matrix.artifact-name }}
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*. gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - run: ./gradlew build -PArchOverride=${{ matrix.arch-override }}
+      - uses:  actions/upload-artifact@v4
+        with:
+          name:  jar-${{ matrix.artifact-name }}
           path: build/libs/BatteryTracking-${{ matrix.arch-override }}.jar
