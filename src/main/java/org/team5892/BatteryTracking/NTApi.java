@@ -14,7 +14,7 @@ public class NTApi {
   private final NetworkTable table;
   private final StringPublisher batteryNamePub;
   private final IntegerPublisher batteryIdPub;
-  private final IntegerPublisher batteryYearPub;
+  private final StringPublisher batteryStatusPub;
   private final StructArrayPublisher<BatteryTracking.Battery.LogEntry> logPub;
   private boolean hasRead = false;
 
@@ -35,7 +35,7 @@ public class NTApi {
     this.failedPub = table.getBooleanTopic("failed").publish();
     this.batteryNamePub = table.getStringTopic("batteryName").publish();
     this.batteryIdPub = table.getIntegerTopic("batteryId").publish();
-    this.batteryYearPub = table.getIntegerTopic("batteryYear").publish();
+    this.batteryStatusPub = table.getStringTopic("batteryYear").publish();
     this.logPub =
         table.getStructArrayTopic("log", BatteryTracking.Battery.LogEntry.struct).publish();
     failedPub.set(false);
@@ -55,14 +55,14 @@ public class NTApi {
         if (!this.hasRead) {
           this.hasRead = true;
           // Check if coprocessor is still up but robot code restarted
-          if (BatteryTracking.getInsertedBattery() == null) {
+          if (BatteryTracking.getInsertedBattery().isEmpty()) {
             BatteryTracking.initialRead();
           }
-          BatteryTracking.Battery insertedBattery = BatteryTracking.getInsertedBattery();
-          if (insertedBattery != null) {
+          if (BatteryTracking.getInsertedBattery().isPresent()) {
+            BatteryTracking.Battery insertedBattery = BatteryTracking.getInsertedBattery().get();
             batteryNamePub.set(insertedBattery.getName());
             batteryIdPub.set(insertedBattery.getId());
-            batteryYearPub.set(insertedBattery.getYear());
+            batteryStatusPub.set(insertedBattery.getStatus().name());
             logPub.set(insertedBattery.getLog().toArray(new BatteryTracking.Battery.LogEntry[0]));
             triggerWritePub.set(false);
           } else {

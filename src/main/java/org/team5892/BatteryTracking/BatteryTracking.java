@@ -11,9 +11,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import javax.smartcardio.*;
 
@@ -57,6 +59,8 @@ public class BatteryTracking {
   /** Error handler to use. */
   private static final ProgramSpecificErrorHandling ERROR_HANDLER = new JavaErrors();
 
+  private static final int DEFAULT_VERSION = 1;
+
   /** How often to write to the tag */
   private static final long WRITE_EVERY_SECS = 60 * 5;
 
@@ -81,7 +85,7 @@ public class BatteryTracking {
       return;
     }
     if (asyncThread == null) {
-      asyncThread = new Thread(new BatteryRunner(usageSupplierAH, getInsertedBattery()));
+      asyncThread = new Thread(new BatteryRunner(usageSupplierAH, getInsertedBatteryUnsafe()));
       asyncThread.start();
     } else {
       ERROR_HANDLER.consumeError("Automatic writes thread attempted to start multiple times!");
@@ -93,8 +97,16 @@ public class BatteryTracking {
    *
    * @return the inserted battery
    */
-  public static Battery getInsertedBattery() {
-    return BatteryTracking.insertedBattery;
+  public static Optional<Battery> getInsertedBattery() {
+    if (insertedBattery == null) {
+      ERROR_HANDLER.consumeError("No battery inserted or initialRead() not called yet!");
+      return Optional.empty();
+    }
+    return Optional.of(BatteryTracking.insertedBattery);
+  }
+
+  private static Battery getInsertedBatteryUnsafe() {
+    return insertedBattery;
   }
 
   /**
@@ -155,6 +167,22 @@ public class BatteryTracking {
     }
     insertedBattery.getLog().get(0).update(usage, time);
     insertedBattery.sessionUsageAH = usage;
+    updateSyncForced();
+  }
+
+  /**
+   * Update and write the card synchronously (blocking) with a new battery This will overwrite the
+   * current battery This function is not recommended for normal use
+   *
+   * @param newInsertedBattery new battery to use
+   */
+  public static void updateSyncForced(Battery newInsertedBattery) {
+    insertedBattery = newInsertedBattery;
+    updateSyncForced();
+  }
+
+  /** Write the current battery to the tag. Does not update usage or logs */
+  public static void updateSyncForced() {
     try {
       BatteryTracking.write(insertedBattery.toTag());
     } catch (NoSuchAlgorithmException e) {
@@ -216,26 +244,56 @@ public class BatteryTracking {
 
   /** Represents a battery with its data */
   public static class Battery {
+    public enum Status {
+      COMPETITION,
+      PRACTICE,
+      INVERTER;
+      public final char key;
+
+      Status() {
+        this.key = this.name().charAt(0);
+      }
+
+      public static Status fromKey(char key) {
+        for (Status status : values()) {
+          if (status.key == key) {
+            return status;
+          }
+        }
+        throw new IllegalArgumentException("No Status with key " + key);
+      }
+    }
 
     private final int id;
     private final String name;
-    private final int year;
+    private final Status status;
     private final double testedCapacityAH;
     private double sessionUsageAH = 0;
     private final double initialUsageAH;
     private final List<LogEntry> log;
     private boolean hasNewLog = false;
 
-    private Battery(
+    /**
+     * <strong>INTERNAL USE ONLY</strong><br>
+     * Create a new Battery object
+     *
+     * @param log
+     * @param testedCapacityAH
+     * @param name
+     * @param id
+     * @param status
+     * @param initialUsageAH
+     */
+    protected Battery(
         List<LogEntry> log,
         double testedCapacityAH,
         String name,
         int id,
-        int year,
+        Status status,
         double initialUsageAH) {
       this.id = id;
       this.name = name;
-      this.year = year;
+      this.status = status;
       this.testedCapacityAH = testedCapacityAH;
       this.initialUsageAH = initialUsageAH;
       this.log = log;
@@ -259,8 +317,8 @@ public class BatteryTracking {
     /**
      * @return Battery's start year
      */
-    public int getYear() {
-      return year;
+    public Status getStatus() {
+      return status;
     }
 
     /**
@@ -302,7 +360,7 @@ public class BatteryTracking {
      * Parse a tag Expects the format
      *
      * <pre>{@code
-     * ID name year testedah
+     * vVERSION ID name status testedah
      * usedahu
      * YYMMDD HH:MM capacityAH
      * ...
@@ -312,14 +370,26 @@ public class BatteryTracking {
      * @return Battery object equivalent to this data
      */
     private static Battery fromTag(String tagData) {
+
       Iterator<String> lines = tagData.lines().iterator();
+      // Line 1: vVERSION ID name status testedah
       String line = lines.next();
-      String[] header = line.split("\\s+");
-      int batteryID = Integer.parseInt(header[0]);
-      String batteryName = header[1];
-      int year = Integer.parseInt(header[2]);
+      Iterator<String> header = Arrays.stream(line.split("\\s+")).iterator();
+      int version = Integer.parseInt(header.next().substring(1));
+
+      if (version != DEFAULT_VERSION) {
+        throw new IllegalArgumentException("Unsupported version: " + version);
+      }
+
+      int batteryID = Integer.parseInt(header.next());
+      String batteryName = header.next();
+      Status status = Status.fromKey(header.next().charAt(0));
       // Strip the unit digits
-      double testedCapacityAH = Double.parseDouble(header[3].substring(0, header[3].length() - 2));
+      final String capacityStr = header.next();
+      double testedCapacityAH =
+          Double.parseDouble(capacityStr.substring(0, capacityStr.length() - 2));
+
+      // Line 2: usedahu
       line = lines.next();
       double usedAH = Double.parseDouble(line.substring(0, line.length() - 3));
       List<LogEntry> log = new ArrayList<>();
@@ -332,7 +402,7 @@ public class BatteryTracking {
         log.add(LogEntry.fromTag(line));
       }
       Collections.sort(log);
-      return new Battery(log, testedCapacityAH, batteryName, batteryID, year, usedAH);
+      return new Battery(log, testedCapacityAH, batteryName, batteryID, status, usedAH);
     }
 
     /**
@@ -351,8 +421,8 @@ public class BatteryTracking {
 
     private String getHeader() {
       return String.format(
-          "%03d %s %d %02.2fAH\n%02.2fAHu\n",
-          id, name, year, testedCapacityAH, initialUsageAH + sessionUsageAH);
+          "v%s %03d %s %s %02.2fAH\n%02.2fAHu\n",
+          DEFAULT_VERSION, id, name, status.key, testedCapacityAH, initialUsageAH + sessionUsageAH);
     }
 
     @Override
