@@ -629,10 +629,10 @@ public class BatteryTracking {
     private static final int PAGE_SIZE_BYTES = 4;
 
     /** By Page ONLY: First usable page */
-    private static final int START_PAGE = 4;
+    private static final int START_PAGE = 0x04;
 
     /** By Page ONLY: Last usable page */
-    private static final int END_PAGE = 129;
+    private static final int END_PAGE = 0xE1;
 
     /** By Page ONLY: Page count */
     private static final int PAGE_COUNT = END_PAGE - START_PAGE + 1;
